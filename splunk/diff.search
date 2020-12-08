@@ -14,6 +14,6 @@ index=databases source="pg_sql:db_backup"
 | eval match=if(BackupLabelDIff>=timeNow, "Yes", "No")
 | sort BackupLabelDIff desc
 | table host BackupType BackupLabelFull BackupLabelDIff timeNow match
-
+| search BackupType!="full"
 
 -2d time in days when your backup will be expired
