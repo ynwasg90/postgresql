@@ -1,0 +1,36 @@
+index=databases source="pg_sql:db_backup" 
+| rename pg{}.db{}.version as DbVersion, pg{}.name AS PgStanza, pg{}.status.message as PgStatusMessage
+| spath "pg{}" 
+| rename pg{}.backup{}.info.size AS size, pg{}.backup{}.archive.start AS start, pg{}.backup{}.archive.stop AS stop, pg{}.backup{}.backrest.format as format, pg{}.backup{}.backrest.version as version, pg{}.backup{}.database.id as dbid, pg{}.backup{}.info.delta as delta, pg{}.backup{}.info.repository.size as reposize, pg{}.backup{}.label as label, pg{}.backup{}.prior as prior, pg{}.backup{}.timestamp.start AS timestamp-start, pg{}.backup{}.timestamp.stop AS timestamp-stop, pg{}.backup{}.type AS type
+| eval a=mvzip(size,delta)
+| eval b=mvzip(a,start)
+| eval c=mvzip(b,stop)
+| eval d=mvzip(c,format)
+| eval e=mvzip(d,version)
+| eval f=mvzip(e,dbid)
+| eval g=mvzip(f,reposize)
+| eval h=mvzip(g,label)
+| eval j=mvzip(h,prior)
+| eval k=mvzip(j,'timestamp-start')
+| eval l=mvzip(k,'timestamp-stop')
+| eval m=mvzip(l,type)
+| mvexpand m
+| eval x=split(m,",")
+| eval InfoSize=mvindex(x,0)  
+| eval InfoDelta=mvindex(x,1)  
+| eval ArchiveStart=mvindex(x,2)  
+| eval ArchiveStop=mvindex(x,3)  
+| eval BackrestFormat=mvindex(x,4)  
+| eval BackrestVersion=mvindex(x,5)  
+| eval DatabaseId=mvindex(x,6)  
+| eval InfoRepositorySize=mvindex(x,7)  
+| eval BackupLabel=mvindex(x,8)  
+| eval BackupPrior=mvindex(x,9)  
+| eval BackupTimestampStart=mvindex(x,10)  
+| eval BackupTimestampStop=mvindex(x,11)   
+| eval BackupType=mvindex(x,12) 
+| rex field=BackupLabel mode=sed "s/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})./\1-\2-\3 \4:\5:\6/g"
+| eval BackupLabel=split(BackupLabel,"_")
+| eval BackupLabelFull=mvindex(BackupLabel,0)
+| eval BackupLabelDIff=mvindex(BackupLabel,1)
+| table prior host BackupType InfoSize BackupLabel DbVersion BackupTimestampStart BackupTimestampStop BackupLabelFull BackupLabelDIff InfoRepositorySize InfoDelta DatabaseId BackrestVersion BackrestFormat ArchiveStart ArchiveStop
