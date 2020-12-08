@@ -1,0 +1,19 @@
+index=databases source="pg_sql:db_backup" 
+| spath "pg{}" 
+| rename pg{}.backup{}.label as label, pg{}.backup{}.type AS type
+| eval a=mvzip(type,label)
+| mvexpand a
+| eval x=split(a,",")
+| eval BackupType=mvindex(x,0) 
+| eval BackupLabel=mvindex(x,1) 
+| rex field=BackupLabel mode=sed "s/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})./\1-\2-\3 \4:\5:\6/g"
+| eval BackupLabel=split(BackupLabel,"_")
+| eval BackupLabelFull=mvindex(BackupLabel,0)
+| eval BackupLabelDIff=mvindex(BackupLabel,1)
+| eval timeNow = strftime(relative_time(now(),"-18d@d"), "%Y-%m-%d")
+| eval match=if(BackupLabelFull>=timeNow, "Yes", "No")
+| sort BackupLabelFull BackupLabelDIff desc
+| dedup  BackupType
+| BackupType="full"
+
+-18d time in days when your backup will be expired
